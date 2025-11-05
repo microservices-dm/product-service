@@ -56,10 +56,16 @@ final class CategoryController extends AbstractController
     #[Route('/', name: 'app_get_categories', methods: ['GET'])]
     public function getAll(Request $request): JsonResponse
     {
-        $data = json_decode($request->getContent(), true);
-
         $result = $this->categoryService->getAll();
 
         return $this->json($result, Response::HTTP_OK);
+    }
+
+    #[Route('/delete/{id}', name: 'app_delete_category', methods: ['DELETE'])]
+    public function delete(Request $request, int $id): JsonResponse
+    {
+        $this->categoryService->delete($id);
+
+        return $this->json([], Response::HTTP_NO_CONTENT);
     }
 }

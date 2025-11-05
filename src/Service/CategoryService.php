@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Category;
+use App\Exception\ApiException;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 readonly class CategoryService
@@ -52,7 +54,7 @@ readonly class CategoryService
         $categories = $this->entityManager->getRepository(Category::class)->findAll();
 
         if (empty($categories)) {
-            throw new NotFoundHttpException('Categories not found');
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Categories not found');
         }
 
         $result = [];
@@ -71,5 +73,17 @@ readonly class CategoryService
         }
 
         return $result;
+    }
+
+    public function delete(int $id): void
+    {
+        $category = $this->entityManager->getRepository(Category::class)->find($id);
+
+        if (empty($category)) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Category not found');
+        }
+
+        $this->entityManager->remove($category);
+        $this->entityManager->flush();
     }
 }
