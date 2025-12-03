@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\ProductRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -48,6 +50,17 @@ class Product
     #[ORM\ManyToOne(inversedBy: 'products')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Brand $brand = null;
+
+    /**
+     * @var Collection<int, ProductAttributeValue>
+     */
+    #[ORM\OneToMany(targetEntity: ProductAttributeValue::class, mappedBy: 'product', orphanRemoval: true)]
+    private Collection $productAttributeValues;
+
+    public function __construct()
+    {
+        $this->productAttributeValues = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -182,6 +195,36 @@ class Product
     public function setBrand(?Brand $brand): static
     {
         $this->brand = $brand;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ProductAttributeValue>
+     */
+    public function getProductAttributeValues(): Collection
+    {
+        return $this->productAttributeValues;
+    }
+
+    public function addProductAttributeValue(ProductAttributeValue $productAttributeValue): static
+    {
+        if (!$this->productAttributeValues->contains($productAttributeValue)) {
+            $this->productAttributeValues->add($productAttributeValue);
+            $productAttributeValue->setProduct($this);
+        }
+
+        return $this;
+    }
+
+    public function removeProductAttributeValue(ProductAttributeValue $productAttributeValue): static
+    {
+        if ($this->productAttributeValues->removeElement($productAttributeValue)) {
+            // set the owning side to null (unless already changed)
+            if ($productAttributeValue->getProduct() === $this) {
+                $productAttributeValue->setProduct(null);
+            }
+        }
 
         return $this;
     }

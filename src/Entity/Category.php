@@ -52,10 +52,17 @@ class Category
     #[ORM\OneToMany(targetEntity: Product::class, mappedBy: 'category')]
     private Collection $products;
 
+    /**
+     * @var Collection<int, CategoryAttribute>
+     */
+    #[ORM\OneToMany(targetEntity: CategoryAttribute::class, mappedBy: 'category', orphanRemoval: true)]
+    private Collection $categoryAttributes;
+
     public function __construct()
     {
         $this->children = new ArrayCollection();
         $this->products = new ArrayCollection();
+        $this->categoryAttributes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -218,6 +225,36 @@ class Category
             // set the owning side to null (unless already changed)
             if ($product->getCategory() === $this) {
                 $product->setCategory(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, CategoryAttribute>
+     */
+    public function getCategoryAttributes(): Collection
+    {
+        return $this->categoryAttributes;
+    }
+
+    public function addCategoryAttribute(CategoryAttribute $categoryAttribute): static
+    {
+        if (!$this->categoryAttributes->contains($categoryAttribute)) {
+            $this->categoryAttributes->add($categoryAttribute);
+            $categoryAttribute->setCategory($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCategoryAttribute(CategoryAttribute $categoryAttribute): static
+    {
+        if ($this->categoryAttributes->removeElement($categoryAttribute)) {
+            // set the owning side to null (unless already changed)
+            if ($categoryAttribute->getCategory() === $this) {
+                $categoryAttribute->setCategory(null);
             }
         }
 
