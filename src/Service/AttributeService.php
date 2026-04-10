@@ -7,9 +7,13 @@ namespace App\Service;
 use App\Entity\Category;
 use App\Entity\CategoryAttribute;
 use App\Entity\ProductAttribute;
+use App\Enum\Color;
+use App\Enum\OperatingSystem;
+use App\Enum\RamSize;
+use App\Enum\ScreenSize;
+use App\Enum\StorageCapacity;
 use App\Exception\ApiException;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 readonly class AttributeService
@@ -46,56 +50,100 @@ readonly class AttributeService
         return $attribute;
     }
 
-    public function update(array $data, int $id): Category
+    public function update(array $data, int $id): ProductAttribute
     {
-        $category = $this->entityManager->getRepository(Category::class)->find($id);
-        $category->setName($data['name']);
-        $category->setDescription($data['description']);
-        $category->setIsActive($data['isActive']);
-        $category->setSortOrder((int)$data['sortOrder']);
-        $category->setUpdatedAt(new \DateTimeImmutable());
+        $attribute = $this->entityManager->getRepository(ProductAttribute::class)->find($id);
 
-        $this->entityManager->persist($category);
+        if (!$attribute) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Attribute not found');
+        }
+
+        $attribute->setName($data['name']);
+        $attribute->setType($data['type']);
+        $attribute->setUnit($data['unit'] ?? null);
+        $attribute->setIsRequired($data['isRequired']);
+        $attribute->setIsFilterable($data['isFilterable']);
+        $attribute->setSortOrder((int)$data['sortOrder']);
+        $attribute->setSlug(strtolower(str_replace(' ', '-', $data['name'])));
+
         $this->entityManager->flush();
 
-        return $category;
+        return $attribute;
     }
 
-    public function getAll(): array
+    public function getByCategoryId(int $categoryId): array
     {
-        $categories = $this->entityManager->getRepository(Category::class)->findAll();
+        $category = $this->entityManager->getRepository(Category::class)->find($categoryId);
 
-        if (empty($categories)) {
-            throw new ApiException(Response::HTTP_NOT_FOUND, 'Categories not found');
+        if (!$category) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Category not found');
+        }
+
+        $categoryAttributes = $this->entityManager->getRepository(CategoryAttribute::class)
+            ->findBy(['category' => $category]);
+
+        if (empty($categoryAttributes)) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'No attributes found for this category');
         }
 
         $result = [];
 
-        foreach ($categories as $category) {
+        foreach ($categoryAttributes as $ca) {
+            $attribute = $ca->getProductAttribute();
             $result[] = [
-                'id' => $category->getId(),
-                'name' => $category->getName(),
-                'description' => $category->getDescription(),
-                'isActive' => $category->isActive(),
-                'sortOrder' => $category->getSortOrder(),
-                'createdAt' => $category->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updatedAt' => $category->getUpdatedAt()->format('Y-m-d H:i:s'),
-                'parent' => $category->getParent()?->getId(),
+                'id' => $attribute->getId(),
+                'name' => $attribute->getName(),
+                'slug' => $attribute->getSlug(),
+                'type' => $attribute->getType(),
+                'unit' => $attribute->getUnit(),
+                'isRequired' => $ca->isRequired(),
+                'isFilterable' => $attribute->isFilterable(),
+                'sortOrder' => $attribute->getSortOrder(),
             ];
         }
 
         return $result;
     }
 
-    public function delete(int $id): void
-    {
-        $category = $this->entityManager->getRepository(Category::class)->find($id);
+    private const array ATTRIBUTE_ENUMS = [
+        'color' => Color::class,
+        'screen_size' => ScreenSize::class,
+        'storage' => StorageCapacity::class,
+        'ram' => RamSize::class,
+        'os' => OperatingSystem::class,
+    ];
 
-        if (empty($category)) {
-            throw new ApiException(Response::HTTP_NOT_FOUND, 'Category not found');
+    public function getValuesByAttribute(int $categoryId, int $attributeId): array
+    {
+        $categoryAttribute = $this->entityManager->getRepository(CategoryAttribute::class)
+            ->findOneBy(['category' => $categoryId, 'productAttribute' => $attributeId]);
+
+        if (!$categoryAttribute) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Attribute not found in this category');
         }
 
-        $this->entityManager->remove($category);
+        $type = $categoryAttribute->getProductAttribute()->getName();
+        $enumClass = self::ATTRIBUTE_ENUMS[$type] ?? null;
+
+        if (!$enumClass) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, "No predefined values for attribute type: $type");
+        }
+
+        return array_map(
+            fn($case) => ['value' => $case->value, 'label' => $case->label()],
+            $enumClass::cases()
+        );
+    }
+
+    public function delete(int $id): void
+    {
+        $attribute = $this->entityManager->getRepository(ProductAttribute::class)->find($id);
+
+        if (!$attribute) {
+            throw new ApiException(Response::HTTP_NOT_FOUND, 'Attribute not found');
+        }
+
+        $this->entityManager->remove($attribute);
         $this->entityManager->flush();
     }
 }

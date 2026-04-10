@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/products/category')]
 final class CategoryController extends AbstractController
 {
-    public function __construct(private CategoryService $categoryService)
+    public function __construct(private readonly CategoryService $categoryService)
     {}
 
     #[Route('/create', name: 'app_create_category', methods: ['POST'])]
