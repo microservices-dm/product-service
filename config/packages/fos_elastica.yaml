@@ -1,0 +1,84 @@
+fos_elastica:
+    clients:
+        default:
+            hosts:
+                - '%env(ELASTICSEARCH_URL)%'
+    indexes:
+        products:
+            settings:
+                index:
+                    number_of_shards: 1
+                    number_of_replicas: 0
+                analysis:
+                    analyzer:
+                        product_analyzer:
+                            type: custom
+                            tokenizer: standard
+                            filter: [lowercase, asciifolding]
+            properties:
+                name:
+                    type: text
+                    analyzer: product_analyzer
+                slug:
+                    type: keyword
+                description:
+                    type: text
+                    analyzer: product_analyzer
+                price:
+                    type: float
+                is_published:
+                    type: boolean
+                seller_id:
+                    type: integer
+                created_at:
+                    type: date
+                    format: "yyyy-MM-dd HH:mm:ss"
+                brand:
+                    type: object
+                    properties:
+                        id:
+                            type: integer
+                        name:
+                            type: keyword
+                        slug:
+                            type: keyword
+                category:
+                    type: object
+                    properties:
+                        id:
+                            type: integer
+                        name:
+                            type: keyword
+                        slug:
+                            type: keyword
+                attributes:
+                    type: nested
+                    properties:
+                        id:
+                            type: integer
+                        name:
+                            type: keyword
+                        slug:
+                            type: keyword
+                        type:
+                            type: keyword
+                        value_string:
+                            type: keyword
+                        value_integer:
+                            type: integer
+                        value_decimal:
+                            type: float
+                        value_boolean:
+                            type: boolean
+            persistence:
+                driver: orm
+                model: App\Entity\Product
+                provider: ~
+                listener:
+                    insert: true
+                    update: true
+                    delete: true
+                elastica_to_model_transformer:
+                    ignore_missing: true
+                model_to_elastica_transformer:
+                    service: App\Transformer\ProductToElasticaTransformer
